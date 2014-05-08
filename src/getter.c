@@ -114,7 +114,7 @@ void get_loop(struct options *opt)
 		gettimeofday(&end, NULL);
 		time = end.tv_sec - start.tv_sec;
 		time += (double)(end.tv_usec - start.tv_usec) / 1000000;
-		printf("[%lu.%06lu] Received %lu bytes in %f seconds.\n", (long)end.tv_sec, (long)end.tv_usec, (long)bytes, time);
+		fprintf(opt->output, "[%lu.%06lu] Received %lu bytes in %f seconds.\n", (long)end.tv_sec, (long)end.tv_usec, (long)bytes, time);
 		count++;
 	} while((opt->count == 0 || count < opt->count) &&
 		(end.tv_sec < stop.tv_sec || end.tv_usec < stop.tv_usec || opt->run_length == 0));
