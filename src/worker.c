@@ -23,6 +23,7 @@ struct memory_chunk {
 struct worker_data {
 	int timeout;
 	char *dns_servers;
+	int ai_family;
 	size_t bytes;
 	CURL *curl;
 	CURLcode res;
@@ -57,6 +58,13 @@ static int init_worker(struct worker_data *data)
 	}
 
 	if(data->dns_servers && (res = curl_easy_setopt(data->curl, CURLOPT_DNS_SERVERS, data->dns_servers)) != CURLE_OK) {
+		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+	}
+
+	if(data->ai_family == AF_INET && (res = curl_easy_setopt(data->curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4)) != CURLE_OK) {
+		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+	}
+	if(data->ai_family == AF_INET6 && (res = curl_easy_setopt(data->curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V6)) != CURLE_OK) {
 		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
 	}
 
@@ -165,6 +173,7 @@ int start_worker(struct worker *w, struct options *opt)
 		wd.pipe_w = fds_r[1];
 		wd.timeout = opt->timeout;
 		wd.dns_servers = opt->dns_servers;
+		wd.ai_family = opt->ai_family;
 		close(fds_r[0]);
 		close(fds_w[1]);
 		_exit(run_worker(&wd));

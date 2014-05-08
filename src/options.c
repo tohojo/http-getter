@@ -22,7 +22,7 @@ int initialise_options(struct options *opt, int argc, char **argv)
 	opt->workers = 4;
 	opt->timeout = 5000;
 	opt->dns_servers = NULL;
-	opt->ai_family = AF_INET;
+	opt->ai_family = 0;
 	gettimeofday(&opt->start_time, NULL);
 	opt->urls_l = 0;
 	memset(&opt->urls, 0, MAX_URLS * sizeof(&opt->urls));
