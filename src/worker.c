@@ -102,14 +102,14 @@ static int init_worker(struct worker_data *data)
 	return 0;
 }
 
-static size_t parse_urls(struct memory_chunk *chunk, char **urls, size_t urls_l)
+static size_t parse_urls(char *buf, size_t buflen, char **urls, size_t urls_l)
 {
-	char *p, *lstart = chunk->memory;
+	char *p, *lstart = buf;
 	int discard = 0, cp_len;
 	size_t urls_c = 0;
-	for(p = chunk->memory; p - chunk->memory <= chunk->size; p++) {
+	for(p = buf; p - buf <= buflen; p++) {
 		if(lstart == p && *p == '#') discard = 1;
-		if(*p == '\n' || p - chunk->memory == chunk->size) {
+		if(*p == '\n' || p - buf == buflen) {
 			if(!discard && p > lstart) {
 				cp_len = min(p-lstart, PIPE_BUF-1);
 				urls[urls_c] = malloc(cp_len+1);
@@ -192,7 +192,7 @@ static int run_worker(struct worker_data *data)
 				len = sprintf(outbuf, "OK %lu bytes", (long)bytes + header_bytes);
 				write(data->pipe_w, outbuf, len);
 			} else {
-				urls_c = parse_urls(&data->chunk, urls, MAX_URLS);
+				urls_c = parse_urls(data->chunk.memory, data->chunk.size, urls, MAX_URLS);
 				len = sprintf(outbuf, "OK %lu bytes %lu urls", (long)bytes + header_bytes, (long)urls_c);
 				write(data->pipe_w, outbuf, len);
 				for(i = 0; i < urls_c; i++) {
