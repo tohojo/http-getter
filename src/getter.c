@@ -12,15 +12,55 @@
 #include "worker.h"
 #include "util.h"
 
-int get_once(struct worker *workers, char **urls, size_t urls_l)
+static size_t get_urls(struct worker *w, char **urls, char *urls_loc, int *total_bytes)
+{
+	char buf[PIPE_BUF+1] = {}, outbuf[PIPE_BUF+1] = {};
+	int len, i;
+	size_t bytes, urls_c;
+	len = sprintf(outbuf, "URLLIST %s", urls_loc);
+	write(w->pipe_w, outbuf, len);
+	if((len = read(w->pipe_r, buf, sizeof(buf))) == -1) {
+		perror("read");
+		return 0;
+	}
+	buf[len] = '\0';
+	if(sscanf(buf, "OK %lu bytes %lu urls", &bytes, &urls_c)) {
+		*total_bytes += bytes;
+		if(!urls_c) return 0;
+		for(i = 0; i < urls_c; i++) {
+			if((len = read(w->pipe_r, buf, sizeof(buf))) == -1) {
+				perror("read");
+				continue;
+			}
+			buf[len] = '\0';
+			urls[i] = malloc(len+1);
+			if(urls[i] == NULL) {
+				perror("malloc");
+				return i;
+			}
+			memcpy(urls[i], buf, len+1);
+		}
+	}
+	return urls_c;
+}
+
+int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_loc)
 {
 	struct worker *w;
-	int cururl = 0, total_bytes = 0, bytes, nfds, retval, len;
+	int cururl = 0, total_bytes = 0, urls_alloc = 0, bytes, nfds, retval, len, i;
+	char **urls = urls_opt;
 	fd_set rfds;
-	char buf[PIPE_BUF] = {}, outbuf[PIPE_BUF] = {};
+	char buf[PIPE_BUF+1] = {}, outbuf[PIPE_BUF+1] = {};
 	for(w = workers; w; w = w->next) {
 		write(w->pipe_w, "RESET", sizeof("RESET"));
-		w->status = STATUS_WORKING;
+		read(w->pipe_r, buf, sizeof(buf));
+		w->status = STATUS_READY;
+	}
+
+	if(urls_loc != NULL) {
+		urls = malloc(MAX_URLS);
+		urls_l = get_urls(workers, urls, urls_loc, &total_bytes);
+		urls_alloc = 1;
 	}
 
 	do {
@@ -57,6 +97,12 @@ int get_once(struct worker *workers, char **urls, size_t urls_l)
 			}
 		}
 	} while(1);
+
+	if(urls_alloc) {
+		for(i = 0; i < urls_l; i++) {
+			free(urls[i]);
+		}
+	}
 	return total_bytes;
 }
 
@@ -111,7 +157,7 @@ void get_loop(struct options *opt)
 			gettimeofday(&start, NULL);
 		}
 		schedule_next(opt->interval, &start, &next);
-		if((bytes = get_once(workers, opt->urls, opt->urls_l)) < 0) exit(-bytes);
+		if((bytes = get_once(workers, opt->urls, opt->urls_l, opt->urls_loc)) < 0) exit(-bytes);
 		gettimeofday(&end, NULL);
 		time = end.tv_sec - start.tv_sec;
 		time += (double)(end.tv_usec - start.tv_usec) / 1000000;

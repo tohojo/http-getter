@@ -32,6 +32,7 @@ struct options {
 	FILE *output;
 	char *urls[MAX_URLS];
 	size_t urls_l;
+	char *urls_loc;
 };
 
 int initialise_options(struct options *opt, int argc, char **argv);

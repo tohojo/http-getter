@@ -14,17 +14,19 @@
 #include <sys/wait.h>
 #include <curl/curl.h>
 #include "worker.h"
+#include "util.h"
 
 struct memory_chunk {
 	char *memory;
 	size_t size;
+	int enabled;
 };
 
 struct worker_data {
 	int timeout;
 	char *dns_servers;
 	int ai_family;
-	size_t bytes;
+	struct memory_chunk chunk;
 	CURL *curl;
 	CURLcode res;
 	int pipe_r;
@@ -32,12 +34,21 @@ struct worker_data {
 };
 
 
-static size_t discard_callback(void *contents, size_t size, size_t nmemb, void *userp)
+static size_t memory_callback(void *contents, size_t size, size_t nmemb, void *userp)
 {
 	size_t realsize = size * nmemb;
-	size_t *bytes = (size_t *)userp;
+	struct memory_chunk *chunk = userp;
+	if(!chunk->enabled) return realsize;
 
-	*bytes += realsize;
+	chunk->memory = realloc(chunk->memory, chunk->size + realsize + 1);
+	if(chunk->memory == NULL) {
+		perror("realloc");
+		return 0;
+	}
+
+	memcpy(&(chunk->memory[chunk->size]), contents, realsize);
+	chunk->size += realsize;
+	chunk->memory[chunk->size] = 0;
 	return realsize;
 }
 
@@ -48,9 +59,6 @@ static int init_worker(struct worker_data *data)
 	if(!data->curl)
 		return -1;
 	if((res = curl_easy_setopt(data->curl, CURLOPT_FOLLOWLOCATION, 1L)) != CURLE_OK) {
-		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
-	}
-	if((res = curl_easy_setopt(data->curl, CURLOPT_HEADER, 1L)) != CURLE_OK) {
 		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
 	}
 	if((res = curl_easy_setopt(data->curl, CURLOPT_TIMEOUT_MS, data->timeout)) != CURLE_OK) {
@@ -69,13 +77,13 @@ static int init_worker(struct worker_data *data)
 	}
 
 	/* send all data to this function  */
-	if((res = curl_easy_setopt(data->curl, CURLOPT_WRITEFUNCTION, discard_callback)) != CURLE_OK) {
+	if((res = curl_easy_setopt(data->curl, CURLOPT_WRITEFUNCTION, memory_callback)) != CURLE_OK) {
 		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
 	}
 
 
 	/* we pass our 'chunk' struct to the callback function */
-	if((res = curl_easy_setopt(data->curl, CURLOPT_WRITEDATA, (void *)&data->bytes)) != CURLE_OK) {
+	if((res = curl_easy_setopt(data->curl, CURLOPT_WRITEDATA, (void *)&data->chunk)) != CURLE_OK) {
 		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
 	}
 
@@ -87,14 +95,40 @@ static int init_worker(struct worker_data *data)
 	}
 
 
-	data->bytes = 0;
+	data->chunk.memory = NULL;
+	data->chunk.size = 0;
+	data->chunk.enabled = 0;
 
 	return 0;
+}
+
+static size_t parse_urls(struct memory_chunk *chunk, char **urls, size_t urls_l)
+{
+	char *p, *lstart = chunk->memory;
+	int discard = 0, len = 0, cp_len;
+	size_t urls_c = 0;
+	for(p = chunk->memory; p - chunk->memory < chunk->size; p++, len++) {
+		if(lstart == p && *p == '#') discard = 1;
+		if(*p == '\n' || p - chunk->memory == chunk->size -1) {
+			if(!discard && len) {
+				cp_len = min(len, PIPE_BUF-1);
+				urls[urls_c] = malloc(cp_len+1);
+				memcpy(urls[urls_c], lstart, cp_len);
+				urls[urls_c][cp_len] = '\0';
+				if(++urls_c >= urls_l) return urls_c;
+			}
+			lstart = p+1;
+			len = 0;
+			discard = 0;
+		}
+	}
+	return urls_c;
 }
 
 static int destroy_worker(struct worker_data *data)
 {
 	curl_easy_cleanup(data->curl);
+	free(data->chunk.memory);
 	return 0;
 }
 
@@ -106,10 +140,15 @@ static int reset_worker(struct worker_data *data)
 
 static int run_worker(struct worker_data *data)
 {
-	char buf[PIPE_BUF] = {};
-	char outbuf[PIPE_BUF] = {};
-	int res;
+	char buf[PIPE_BUF+1] = {};
+	char outbuf[PIPE_BUF+1] = {};
+	char *urls[MAX_URLS];
+	size_t urls_c;
+	char *p;
+	int res, i;
 	ssize_t len;
+	double bytes;
+	long header_bytes;
 	if(init_worker(data)) return -1;
 
 	while(1)
@@ -129,20 +168,41 @@ static int run_worker(struct worker_data *data)
 			}
 			continue;
 		}
-		if(strncmp(buf, "URL ", 4) != 0) {
+		if(strncmp(buf, "URLLIST ", 8) == 0) {
+			p = buf + 8;
+			data->chunk.enabled = 1;
+		} else if(strncmp(buf, "URL ", 4) == 0) {
+			p = buf + 4;
+		} else {
 			fprintf(stderr, "Unrecognised command '%s'!\n", buf);
 			break;
 		}
 
-		curl_easy_setopt(data->curl, CURLOPT_URL, buf+4);
-		data->bytes = 0;
+		curl_easy_setopt(data->curl, CURLOPT_URL, p);
+		data->chunk.size = 0;
 		if((res = curl_easy_perform(data->curl)) != CURLE_OK) {
-			fprintf(stderr, "cURL error: %s.\n", curl_easy_strerror(res));
+			fprintf(stderr, "cURL error: %s\n", curl_easy_strerror(res));
 			len = sprintf(outbuf, "ERR %d", res);
 			write(data->pipe_w, outbuf, len);
 		} else {
-			len = sprintf(outbuf, "OK %lu bytes", (long)data->bytes);
-			write(data->pipe_w, outbuf, len);
+			if((res = curl_easy_getinfo(data->curl, CURLINFO_SIZE_DOWNLOAD, &bytes)) != CURLE_OK ||
+				(res = curl_easy_getinfo(data->curl, CURLINFO_HEADER_SIZE, &header_bytes)) != CURLE_OK ) {
+				fprintf(stderr, "cURL error: %s\n", curl_easy_strerror(res));
+			}
+			if(data->chunk.enabled == 0) {
+				len = sprintf(outbuf, "OK %lu bytes", (long)bytes + header_bytes);
+				write(data->pipe_w, outbuf, len);
+			} else {
+				urls_c = parse_urls(&data->chunk, urls, MAX_URLS);
+				len = sprintf(outbuf, "OK %lu bytes %lu urls", (long)bytes + header_bytes, (long)urls_c);
+				write(data->pipe_w, outbuf, len);
+				for(i = 0; i < urls_c; i++) {
+					len = sprintf(outbuf, "%s", urls[i]);
+					write(data->pipe_w, outbuf, len);
+					free(urls[i]);
+				}
+				data->chunk.enabled = 0;
+			}
 		}
 	}
 	return 0;

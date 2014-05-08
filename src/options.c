@@ -8,6 +8,7 @@
 #define _GNU_SOURCE
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "options.h"
 
 int parse_options(struct options *opt, int argc, char **argv);
@@ -26,6 +27,7 @@ int initialise_options(struct options *opt, int argc, char **argv)
 	gettimeofday(&opt->start_time, NULL);
 	opt->urls_l = 0;
 	memset(&opt->urls, 0, MAX_URLS * sizeof(&opt->urls));
+	opt->urls_loc = NULL;
 
 	if(parse_options(opt, argc, argv) < 0)
 		return -2;
@@ -42,12 +44,13 @@ void destroy_options(struct options *opt)
 		return;
 	opt->initialised = 0;
 	free(opt->dns_servers);
+	free(opt->urls_loc);
 	for(i = 0; i < opt->urls_l; i++) free(opt->urls[i]);
 }
 
 static void usage(const char *name)
 {
-	fprintf(stderr, "Usage: %s [-46] [-c <count>] [-d <dns_servers>] [-i <interval>] [-l <length>] [-n <workers>] [-o <output>] [-t <timeout>] <url_file>\n", name);
+	fprintf(stderr, "Usage: %s [-46] [-c <count>] [-d <dns_servers>] [-i <interval>] [-l <length>] [-n <workers>] [-o <output>] [-t <timeout>] [url_file]\n", name);
 }
 
 
@@ -137,13 +140,15 @@ int parse_options(struct options *opt, int argc, char **argv)
 			break;
 		}
 	}
-	if(optind >= argc) {
-		usage(argv[0]);
-		return -1;
-	}
-	if(strcmp(argv[optind], "-") == 0) {
+	if(optind >= argc || strcmp(argv[optind], "-") == 0) {
 		urlfile = stdin;
 	} else {
+		if(strncmp(argv[optind], "http://", 7) == 0 ||
+			strncmp(argv[optind], "https://", 8) == 0) {
+			opt->urls_loc = malloc(strlen(argv[optind])+1);
+			strcpy(opt->urls_loc, argv[optind]);
+			return 0;
+		}
 		urlfile = fopen(argv[optind], "r");
 		if(urlfile == NULL) {
 			perror("Unable to open url file.");
@@ -156,6 +161,7 @@ int parse_options(struct options *opt, int argc, char **argv)
 			fprintf(stderr, "Max number of urls (%d) exceeded.\n", MAX_URLS);
 			return -1;
 		}
+		if(*line == '#') continue;
 		opt->urls[opt->urls_l] = malloc(len);
 		memcpy(opt->urls[opt->urls_l], line, read);
 		opt->urls[opt->urls_l][read-1] = '\0';
