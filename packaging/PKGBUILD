@@ -1,0 +1,35 @@
+# See http://wiki.archlinux.org/index.php/VCS_PKGBUILD_Guidelines
+# for more information on packaging from GIT sources.
+
+# Maintainer: Toke Høiland-Jørgensen <toke@toke.dk>
+pkgname=http-getter-git
+pkgver=20140508
+pkgrel=1
+pkgdesc="Parallel HTTP getter."
+arch=(x86_64)
+url="https://github.com/tohojo/http-getter"
+license=('GPL')
+depends=('glibc')
+makedepends=('git' 'cmake')
+source=('git+http://github.com/tohojo/http-getter.git')
+md5sums=('SKIP')
+
+_gitname=http-getter
+
+pkgver() {
+  date +%Y%m%d
+}
+
+build() {
+  cd $_gitname
+  cmake .
+  make
+}
+
+package() {
+  cd $_gitname
+  mkdir -p "$pkgdir/bin/"
+  install -m 755 http-getter "$pkgdir/bin/"
+}
+
+# vim:set ts=2 sw=2 et:
