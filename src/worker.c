@@ -110,6 +110,7 @@ static int run_worker(struct worker_data *data)
 		data->bytes = 0;
 		res = curl_easy_perform(data->curl);
 		if(res != CURLE_OK) {
+			fprintf(stderr, "cURL error: %s.\n", curl_easy_strerror(res));
 			len = sprintf(outbuf, "ERR %d", res);
 			write(data->pipe_w, outbuf, len);
 		} else {
