@@ -104,11 +104,12 @@ void get_loop(struct options *opt)
 	stop.tv_sec += opt->run_length;
 
 	do {
-		do {
-			gettimeofday(&start, NULL);
-			if(start.tv_sec == next.tv_sec && next.tv_usec - start.tv_usec > USLEEP_THRESHOLD)
+		gettimeofday(&start, NULL);
+		while(start.tv_sec < next.tv_sec || (start.tv_sec == next.tv_sec && start.tv_usec < next.tv_usec)) {
+			if(next.tv_usec - start.tv_usec > USLEEP_THRESHOLD)
 				usleep(USLEEP_THRESHOLD);
-		} while(start.tv_sec < next.tv_sec || start.tv_usec < next.tv_usec);
+			gettimeofday(&start, NULL);
+		}
 		schedule_next(opt->interval, &start, &next);
 		if((bytes = get_once(workers, opt->urls, opt->urls_l)) < 0) exit(-bytes);
 		gettimeofday(&end, NULL);
