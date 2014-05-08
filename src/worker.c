@@ -41,23 +41,38 @@ static size_t discard_callback(void *contents, size_t size, size_t nmemb, void *
 
 static int init_worker(struct worker_data *data)
 {
+	int res;
 	data->curl = curl_easy_init();
 	if(!data->curl)
 		return -1;
-	curl_easy_setopt(data->curl, CURLOPT_FOLLOWLOCATION, 1L);
-	curl_easy_setopt(data->curl, CURLOPT_HEADER, 1L);
-	curl_easy_setopt(data->curl, CURLOPT_TIMEOUT_MS, data->timeout);
-//	curl_easy_setopt(data->curl, CURLOPT_VERBOSE, 1L);
+	if((res = curl_easy_setopt(data->curl, CURLOPT_FOLLOWLOCATION, 1L)) != CURLE_OK) {
+		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+	}
+	if((res = curl_easy_setopt(data->curl, CURLOPT_HEADER, 1L)) != CURLE_OK) {
+		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+	}
+	if((res = curl_easy_setopt(data->curl, CURLOPT_TIMEOUT_MS, data->timeout)) != CURLE_OK) {
+		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+	}
 
 	/* send all data to this function  */
-	curl_easy_setopt(data->curl, CURLOPT_WRITEFUNCTION, discard_callback);
+	if((res = curl_easy_setopt(data->curl, CURLOPT_WRITEFUNCTION, discard_callback)) != CURLE_OK) {
+		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+	}
+
 
 	/* we pass our 'chunk' struct to the callback function */
-	curl_easy_setopt(data->curl, CURLOPT_WRITEDATA, (void *)&data->bytes);
+	if((res = curl_easy_setopt(data->curl, CURLOPT_WRITEDATA, (void *)&data->bytes)) != CURLE_OK) {
+		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+	}
+
 
 	/* some servers don't like requests that are made without a user-agent
 	   field, so we provide one */
-	curl_easy_setopt(data->curl, CURLOPT_USERAGENT, "http-getter/0.1");
+	if((res = curl_easy_setopt(data->curl, CURLOPT_USERAGENT, "http-getter/0.1")) != CURLE_OK) {
+		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+	}
+
 
 	data->bytes = 0;
 
@@ -73,8 +88,7 @@ static int destroy_worker(struct worker_data *data)
 static int reset_worker(struct worker_data *data)
 {
 	destroy_worker(data);
-	init_worker(data);
-	return 0;
+	return init_worker(data);
 }
 
 static int run_worker(struct worker_data *data)
