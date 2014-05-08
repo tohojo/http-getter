@@ -46,7 +46,11 @@ int get_once(struct worker *workers, char **urls, size_t urls_l)
 		}
 		for(w = workers; w; w = w->next) {
 			if(FD_ISSET(w->pipe_r, &rfds)) {
-				read(w->pipe_r, buf, sizeof(buf));
+				if((len = read(w->pipe_r, buf, sizeof(buf))) == -1) {
+					perror("read");
+					continue;
+				}
+				buf[len] = '\0';
 				if(sscanf(buf, "OK %d bytes", &bytes) == 1)
 					total_bytes += bytes;
 				w->status = STATUS_READY;

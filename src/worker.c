@@ -91,6 +91,7 @@ static int run_worker(struct worker_data *data)
 			perror("read");
 			return EXIT_FAILURE;
 		}
+		buf[len] = '\0';
 		if(strncmp(buf, "STOP", 4) == 0) return destroy_worker(data);
 		if(strncmp(buf, "RESET", 5) == 0) {
 			if((res = reset_worker(data)) != 0) {
