@@ -105,20 +105,19 @@ static int init_worker(struct worker_data *data)
 static size_t parse_urls(struct memory_chunk *chunk, char **urls, size_t urls_l)
 {
 	char *p, *lstart = chunk->memory;
-	int discard = 0, len = 0, cp_len;
+	int discard = 0, cp_len;
 	size_t urls_c = 0;
-	for(p = chunk->memory; p - chunk->memory < chunk->size; p++, len++) {
+	for(p = chunk->memory; p - chunk->memory <= chunk->size; p++) {
 		if(lstart == p && *p == '#') discard = 1;
-		if(*p == '\n' || p - chunk->memory == chunk->size -1) {
-			if(!discard && len) {
-				cp_len = min(len, PIPE_BUF-1);
+		if(*p == '\n' || p - chunk->memory == chunk->size) {
+			if(!discard && p > lstart) {
+				cp_len = min(p-lstart, PIPE_BUF-1);
 				urls[urls_c] = malloc(cp_len+1);
 				memcpy(urls[urls_c], lstart, cp_len);
 				urls[urls_c][cp_len] = '\0';
 				if(++urls_c >= urls_l) return urls_c;
 			}
 			lstart = p+1;
-			len = 0;
 			discard = 0;
 		}
 	}
