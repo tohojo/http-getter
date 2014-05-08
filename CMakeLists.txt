@@ -17,7 +17,8 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-long-long")
 set(http-getter_SOURCES
   src/main.c
   src/options.c
-  src/getter.c)
+  src/getter.c
+  src/worker.c)
 set(http-getter_HEADERS
   include/options.h
   include/getter.h)

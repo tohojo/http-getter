@@ -11,6 +11,9 @@
 #include <curl/curl.h>
 #include "options.h"
 
+#define USLEEP_THRESHOLD 10000
+
 void get_loop(struct options *opt);
+void kill_workers();
 
 #endif

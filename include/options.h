@@ -23,8 +23,10 @@ struct options {
 	char initialised;
 	int run_length;
 	int interval;
+	int count;
+	int timeout;
 	int ai_family;
-	int threads;
+	int workers;
 	struct timeval start_time;
 	FILE *output;
 	char *urls[MAX_URLS];

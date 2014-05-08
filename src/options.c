@@ -15,10 +15,12 @@ int parse_options(struct options *opt, int argc, char **argv);
 
 int initialise_options(struct options *opt, int argc, char **argv)
 {
-	opt->run_length = 60;
+	opt->run_length = 0;
+	opt->count = 0;
 	opt->output = stdout;
-	opt->interval = 200;
-	opt->threads = 4;
+	opt->interval = 1000;
+	opt->workers = 4;
+	opt->timeout = 5000;
 	opt->ai_family = AF_INET;
 	gettimeofday(&opt->start_time, NULL);
 	opt->urls_l = 0;
@@ -41,7 +43,7 @@ void destroy_options(struct options *opt)
 
 static void usage(const char *name)
 {
-	fprintf(stderr, "Usage: %s [-46] [-i <interval>] [-l <length>] [-n <threads>] [-o <output>] <url_file>\n", name);
+	fprintf(stderr, "Usage: %s [-46] [-c <count>] [-i <interval>] [-l <length>] [-n <workers>] [-o <output>] [-t <timeout>] <url_file>\n", name);
 }
 
 
@@ -54,7 +56,7 @@ int parse_options(struct options *opt, int argc, char **argv)
 	size_t len = 0;
 	ssize_t read;
 
-	while((o = getopt(argc, argv, "46i:l:n:o:")) != -1) {
+	while((o = getopt(argc, argv, "46c:i:l:n:o:t:")) != -1) {
 		switch(o) {
 		case '4':
 			opt->ai_family = AF_INET;
@@ -62,11 +64,20 @@ int parse_options(struct options *opt, int argc, char **argv)
 		case '6':
 			opt->ai_family = AF_INET6;
 			break;
+		case 'c':
+			// interval
+			val = atoi(optarg);
+			if(val < 1) {
+				fprintf(stderr, "Invalid count value: %d\n", val);
+				return -1;
+			}
+			opt->count = val;
+			break;
 		case 'i':
 			// interval
 			val = atoi(optarg);
 			if(val < 1) {
-				fprintf(stderr, "Invalid inverval value: %d\n", val);
+				fprintf(stderr, "Invalid interval value: %d\n", val);
 				return -1;
 			}
 			opt->interval = val;
@@ -82,10 +93,10 @@ int parse_options(struct options *opt, int argc, char **argv)
 		case 'n':
 			val = atoi(optarg);
 			if(val < 1) {
-				fprintf(stderr, "Invalid number of threads: %d\n", val);
+				fprintf(stderr, "Invalid number of workers: %d\n", val);
 				return -1;
 			}
-			opt->threads = val;
+			opt->workers = val;
 			break;
 		case 'o':
 			if(opt->output != stdout) {
@@ -100,6 +111,14 @@ int parse_options(struct options *opt, int argc, char **argv)
 				}
 				opt->output = output;
 			}
+			break;
+		case 't':
+			val = atoi(optarg);
+			if(val < 1) {
+				fprintf(stderr, "Invalid timeout value: %d\n", val);
+				return -1;
+			}
+			opt->timeout = val;
 			break;
 		case 'h':
 		default:

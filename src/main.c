@@ -14,9 +14,20 @@
 
 static struct options opt;
 
+struct sigaction sigdfl = {
+	.sa_handler = SIG_DFL,
+	.sa_mask = {},
+	.sa_flags = 0,
+};
+
 static void sig_exit(int signal)
 {
 	destroy_options(&opt);
+	kill_workers();
+	if(signal == SIGINT) {
+		sigaction(SIGINT, &sigdfl, NULL);
+		kill(getpid(), SIGINT);
+	}
 	exit(signal);
 }
 
@@ -26,9 +37,9 @@ struct sigaction sigact = {
 	.sa_flags = 0,
 };
 
+
 int main(int argc, char **argv)
 {
-	int i;
 	if(sigaction(SIGINT, &sigact, NULL) < 0 ||
 		sigaction(SIGTERM, &sigact, NULL) < 0) {
 		perror("Error installing signal handler");
