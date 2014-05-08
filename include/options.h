@@ -25,6 +25,7 @@ struct options {
 	int interval;
 	int count;
 	int timeout;
+	char *dns_servers;
 	int ai_family;
 	int workers;
 	struct timeval start_time;

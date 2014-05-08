@@ -22,6 +22,7 @@ struct memory_chunk {
 
 struct worker_data {
 	int timeout;
+	char *dns_servers;
 	size_t bytes;
 	CURL *curl;
 	CURLcode res;
@@ -52,6 +53,10 @@ static int init_worker(struct worker_data *data)
 		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
 	}
 	if((res = curl_easy_setopt(data->curl, CURLOPT_TIMEOUT_MS, data->timeout)) != CURLE_OK) {
+		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+	}
+
+	if(data->dns_servers && (res = curl_easy_setopt(data->curl, CURLOPT_DNS_SERVERS, data->dns_servers)) != CURLE_OK) {
 		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
 	}
 
@@ -123,8 +128,7 @@ static int run_worker(struct worker_data *data)
 
 		curl_easy_setopt(data->curl, CURLOPT_URL, buf+4);
 		data->bytes = 0;
-		res = curl_easy_perform(data->curl);
-		if(res != CURLE_OK) {
+		if((res = curl_easy_perform(data->curl)) != CURLE_OK) {
 			fprintf(stderr, "cURL error: %s.\n", curl_easy_strerror(res));
 			len = sprintf(outbuf, "ERR %d", res);
 			write(data->pipe_w, outbuf, len);
@@ -160,6 +164,7 @@ int start_worker(struct worker *w, struct options *opt)
 		wd.pipe_r = fds_w[0];
 		wd.pipe_w = fds_r[1];
 		wd.timeout = opt->timeout;
+		wd.dns_servers = opt->dns_servers;
 		close(fds_r[0]);
 		close(fds_w[1]);
 		_exit(run_worker(&wd));

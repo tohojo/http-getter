@@ -21,6 +21,7 @@ int initialise_options(struct options *opt, int argc, char **argv)
 	opt->interval = 1000;
 	opt->workers = 4;
 	opt->timeout = 5000;
+	opt->dns_servers = NULL;
 	opt->ai_family = AF_INET;
 	gettimeofday(&opt->start_time, NULL);
 	opt->urls_l = 0;
@@ -36,14 +37,17 @@ int initialise_options(struct options *opt, int argc, char **argv)
 
 void destroy_options(struct options *opt)
 {
+	int i;
 	if(!opt->initialised)
 		return;
 	opt->initialised = 0;
+	free(opt->dns_servers);
+	for(i = 0; i < opt->urls_l; i++) free(opt->urls[i]);
 }
 
 static void usage(const char *name)
 {
-	fprintf(stderr, "Usage: %s [-46] [-c <count>] [-i <interval>] [-l <length>] [-n <workers>] [-o <output>] [-t <timeout>] <url_file>\n", name);
+	fprintf(stderr, "Usage: %s [-46] [-c <count>] [-d <dns_servers>] [-i <interval>] [-l <length>] [-n <workers>] [-o <output>] [-t <timeout>] <url_file>\n", name);
 }
 
 
@@ -56,7 +60,7 @@ int parse_options(struct options *opt, int argc, char **argv)
 	size_t len = 0;
 	ssize_t read;
 
-	while((o = getopt(argc, argv, "46c:i:l:n:o:t:")) != -1) {
+	while((o = getopt(argc, argv, "46c:d:i:l:n:o:t:")) != -1) {
 		switch(o) {
 		case '4':
 			opt->ai_family = AF_INET;
@@ -65,7 +69,6 @@ int parse_options(struct options *opt, int argc, char **argv)
 			opt->ai_family = AF_INET6;
 			break;
 		case 'c':
-			// interval
 			val = atoi(optarg);
 			if(val < 1) {
 				fprintf(stderr, "Invalid count value: %d\n", val);
@@ -73,8 +76,15 @@ int parse_options(struct options *opt, int argc, char **argv)
 			}
 			opt->count = val;
 			break;
+		case 'd':
+			opt->dns_servers = malloc(strlen(optarg)+1);
+			if(!opt->dns_servers) {
+				perror("malloc");
+				return -1;
+			}
+			strcpy(opt->dns_servers, optarg);
+			break;
 		case 'i':
-			// interval
 			val = atoi(optarg);
 			if(val < 1) {
 				fprintf(stderr, "Invalid interval value: %d\n", val);
