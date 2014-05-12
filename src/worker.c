@@ -116,7 +116,7 @@ static size_t parse_urls(char *buf, size_t buflen, char **urls, size_t urls_l)
 		if(lstart == p && *p == '#') discard = 1;
 		if(*p == '\n' || p - buf == buflen) {
 			if(!discard && p > lstart) {
-				cp_len = min(p-lstart, PIPE_BUF-1);
+				cp_len = min(1+p-lstart, PIPE_BUF);
 				urls[urls_c] = malloc(cp_len);
 				memcpy(urls[urls_c], lstart, cp_len);
 				urls[urls_c][cp_len-1] = '\0';
