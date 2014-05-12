@@ -50,7 +50,7 @@ void destroy_options(struct options *opt)
 
 static void usage(const char *name)
 {
-	fprintf(stderr, "Usage: %s [-46] [-c <count>] [-d <dns_servers>] [-i <interval>] [-l <length>] [-n <workers>] [-o <output>] [-t <timeout>] [url_file]\n", name);
+	fprintf(stderr, "Usage: %s [-46h] [-c <count>] [-d <dns_servers>] [-i <interval>] [-l <length>] [-n <workers>] [-o <output>] [-t <timeout>] [url_file]\n", name);
 }
 
 
@@ -63,7 +63,7 @@ int parse_options(struct options *opt, int argc, char **argv)
 	size_t len = 0;
 	ssize_t read;
 
-	while((o = getopt(argc, argv, "46c:d:i:l:n:o:t:")) != -1) {
+	while((o = getopt(argc, argv, "46hc:d:i:l:n:o:t:")) != -1) {
 		switch(o) {
 		case '4':
 			opt->ai_family = AF_INET;
