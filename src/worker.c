@@ -59,6 +59,10 @@ static int init_worker(struct worker_data *data)
 	data->curl = curl_easy_init();
 	if(!data->curl)
 		return -1;
+	if(data->debug > 1 && (res = curl_easy_setopt(data->curl, CURLOPT_VERBOSE, 1L)) != CURLE_OK) {
+		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+	}
+
 	if((res = curl_easy_setopt(data->curl, CURLOPT_FOLLOWLOCATION, 1L)) != CURLE_OK) {
 		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
 	}

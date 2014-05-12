@@ -81,7 +81,7 @@ int parse_options(struct options *opt, int argc, char **argv)
 			opt->count = val;
 			break;
 		case 'D':
-			opt->debug = 1;
+			opt->debug++;
 			break;
 		case 'd':
 			opt->dns_servers = malloc(strlen(optarg)+1);
