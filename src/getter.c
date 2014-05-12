@@ -47,7 +47,7 @@ static size_t get_urls(struct worker *w, char **urls, char *urls_loc, int *total
 int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_loc, int *requests)
 {
 	struct worker *w;
-	int cururl = 0, total_bytes = 0, urls_alloc = 0, reqs = 0, bytes, nfds, retval, len, i;
+	int cururl = 0, total_bytes = 0, urls_alloc = 0, reqs = 0, err = 0, bytes, nfds, retval, len, i;
 	char **urls = urls_opt;
 	fd_set rfds;
 	char buf[PIPE_BUF+1] = {}, outbuf[PIPE_BUF+1] = {};
@@ -69,7 +69,8 @@ int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_
 		nfds = -1;
 		for(w = workers; w; w = w->next) {
 			if(w->status == STATUS_READY && cururl < urls_l) {
-				len = sprintf(outbuf, "URL %s", urls[cururl++]);
+				w->url = urls[cururl++];
+				len = sprintf(outbuf, "URL %s", w->url);
 				write(w->pipe_w, outbuf, len);
 				w->status = STATUS_WORKING;
 			}
@@ -95,6 +96,8 @@ int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_
 				if(sscanf(buf, "OK %d bytes", &bytes) == 1) {
 					total_bytes += bytes;
 					reqs++;
+				} else if(sscanf(buf, "ERR %d", &err) == 1) {
+					fprintf(stderr, "cURL error: %s for URL '%s'.\n", curl_easy_strerror(err), w->url);
 				}
 				w->status = STATUS_READY;
 			}
@@ -107,7 +110,7 @@ int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_
 		}
 	}
 	*requests = reqs;
-	return total_bytes;
+	return err ? -err : total_bytes;
 }
 
 static void schedule_next(int interval, struct timeval *now, struct timeval *next)
@@ -131,13 +134,13 @@ void kill_workers()
 }
 
 
-void get_loop(struct options *opt)
+int get_loop(struct options *opt)
 {
 	struct timeval start, end, stop, next;
 	double time;
 	struct worker *w;
 	int i, bytes;
-	int count = 0, requests = 0;
+	int count = 0, requests = 0, err = 0;
 	for(i = 0; i < opt->workers; i++) {
 		w = malloc(sizeof(*w));
 		if(w == NULL) {
@@ -161,13 +164,18 @@ void get_loop(struct options *opt)
 			gettimeofday(&start, NULL);
 		}
 		schedule_next(opt->interval, &start, &next);
-		if((bytes = get_once(workers, opt->urls, opt->urls_l, opt->urls_loc, &requests)) < 0) exit(-bytes);
+		bytes = get_once(workers, opt->urls, opt->urls_l, opt->urls_loc, &requests);
 		gettimeofday(&end, NULL);
-		time = end.tv_sec - start.tv_sec;
-		time += (double)(end.tv_usec - start.tv_usec) / 1000000;
-		fprintf(opt->output, "[%lu.%06lu] %d requests(s) received %lu bytes in %f seconds.\n", (long)end.tv_sec, (long)end.tv_usec, requests, (long)bytes, time);
 		count++;
+		if(bytes < 0) {
+			err = -bytes;
+		} else {
+			time = end.tv_sec - start.tv_sec;
+			time += (double)(end.tv_usec - start.tv_usec) / 1000000;
+			fprintf(opt->output, "[%lu.%06lu] %d requests(s) received %lu bytes in %f seconds.\n", (long)end.tv_sec, (long)end.tv_usec, requests, (long)bytes, time);
+		}
 	} while((opt->count == 0 || count < opt->count) &&
 		(end.tv_sec < stop.tv_sec || end.tv_usec < stop.tv_usec || opt->run_length == 0));
 	kill_workers();
+	return err;
 }

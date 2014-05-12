@@ -40,6 +40,7 @@ struct sigaction sigact = {
 
 int main(int argc, char **argv)
 {
+	int ret;
 	if(sigaction(SIGINT, &sigact, NULL) < 0 ||
 		sigaction(SIGTERM, &sigact, NULL) < 0) {
 		perror("Error installing signal handler");
@@ -49,9 +50,9 @@ int main(int argc, char **argv)
 	if(initialise_options(&opt, argc, argv) < 0)
 		return 1;
 
-	get_loop(&opt);
+	ret = get_loop(&opt);
 
 	destroy_options(&opt);
-	return 0;
+	return ret;
 
 }

@@ -13,7 +13,7 @@
 
 #define USLEEP_THRESHOLD 10000
 
-void get_loop(struct options *opt);
+int get_loop(struct options *opt);
 void kill_workers();
 
 #endif

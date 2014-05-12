@@ -189,7 +189,6 @@ static int run_worker(struct worker_data *data)
 		curl_easy_setopt(data->curl, CURLOPT_URL, p);
 		data->chunk.size = 0;
 		if((res = curl_easy_perform(data->curl)) != CURLE_OK) {
-			fprintf(stderr, "cURL error: %s\n", curl_easy_strerror(res));
 			len = sprintf(outbuf, "ERR %d", res);
 			write(data->pipe_w, outbuf, len);
 		} else {
@@ -249,6 +248,7 @@ int start_worker(struct worker *w, struct options *opt)
 	} else {
 		w->pipe_r = fds_r[0];
 		w->pipe_w = fds_w[1];
+		w->url = NULL;
 		close(fds_r[1]);
 		close(fds_w[0]);
 		w->pid = cpid;

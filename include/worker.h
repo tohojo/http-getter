@@ -17,6 +17,7 @@
 
 struct worker {
 	struct worker *next;
+	char *url;
 	int status;
 	int pid;
 	int pipe_r;
