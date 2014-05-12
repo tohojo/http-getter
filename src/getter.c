@@ -58,7 +58,7 @@ int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_
 	}
 
 	if(urls_loc != NULL) {
-		urls = malloc(MAX_URLS);
+		urls = malloc(MAX_URLS * sizeof(urls));
 		urls_l = get_urls(workers, urls, urls_loc, &total_bytes);
 		urls_alloc = 1;
 		reqs++;
