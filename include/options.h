@@ -21,6 +21,7 @@
 
 struct options {
 	char initialised;
+	int debug;
 	int run_length;
 	int interval;
 	int count;

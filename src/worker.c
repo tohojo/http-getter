@@ -23,6 +23,7 @@ struct memory_chunk {
 };
 
 struct worker_data {
+	int debug;
 	int timeout;
 	char *dns_servers;
 	int ai_family;
@@ -177,6 +178,10 @@ static int run_worker(struct worker_data *data)
 			break;
 		}
 
+		if(data->debug) {
+			fprintf(stderr, "Getting URL '%s'.\n", p);
+		}
+
 		curl_easy_setopt(data->curl, CURLOPT_URL, p);
 		data->chunk.size = 0;
 		if((res = curl_easy_perform(data->curl)) != CURLE_OK) {
@@ -230,6 +235,7 @@ int start_worker(struct worker *w, struct options *opt)
 		struct worker_data wd = {};
 		wd.pipe_r = fds_w[0];
 		wd.pipe_w = fds_r[1];
+		wd.debug = opt->debug;
 		wd.timeout = opt->timeout;
 		wd.dns_servers = opt->dns_servers;
 		wd.ai_family = opt->ai_family;
