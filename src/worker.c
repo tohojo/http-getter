@@ -66,7 +66,7 @@ static int init_worker(struct worker_data *data)
 	if((res = curl_easy_setopt(data->curl, CURLOPT_FOLLOWLOCATION, 1L)) != CURLE_OK) {
 		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
 	}
-	if((res = curl_easy_setopt(data->curl, CURLOPT_TIMEOUT_MS, data->timeout)) != CURLE_OK) {
+	if(data->timeout && (res = curl_easy_setopt(data->curl, CURLOPT_TIMEOUT_MS, data->timeout)) != CURLE_OK) {
 		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
 	}
 

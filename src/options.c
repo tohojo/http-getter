@@ -22,7 +22,7 @@ int initialise_options(struct options *opt, int argc, char **argv)
 	opt->output = stdout;
 	opt->interval = 1000;
 	opt->workers = 4;
-	opt->timeout = 5000;
+	opt->timeout = 0;
 	opt->dns_servers = NULL;
 	opt->ai_family = 0;
 	gettimeofday(&opt->start_time, NULL);
@@ -131,7 +131,7 @@ int parse_options(struct options *opt, int argc, char **argv)
 			break;
 		case 't':
 			val = atoi(optarg);
-			if(val < 1) {
+			if(val < 0) {
 				fprintf(stderr, "Invalid timeout value: %d\n", val);
 				return -1;
 			}
