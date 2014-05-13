@@ -175,7 +175,7 @@ int get_loop(struct options *opt)
 			fprintf(opt->output, "[%lu.%06lu] %d requests(s) received %lu bytes in %f seconds.\n", (long)end.tv_sec, (long)end.tv_usec, requests, (long)bytes, time);
 		}
 	} while((opt->count == 0 || count < opt->count) &&
-		(end.tv_sec < stop.tv_sec || end.tv_usec < stop.tv_usec || opt->run_length == 0));
+		(opt->run_length == 0 || end.tv_sec < stop.tv_sec || (end.tv_sec == stop.tv_sec && end.tv_usec < stop.tv_usec)));
 	kill_workers();
 	return err;
 }
