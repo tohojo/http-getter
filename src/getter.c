@@ -140,7 +140,7 @@ int get_loop(struct options *opt)
 	double time;
 	struct worker *w;
 	int i, bytes;
-	int count = 0, requests = 0, err = 0;
+	int count = 0, requests = 0, err = -1;
 	for(i = 0; i < opt->workers; i++) {
 		w = malloc(sizeof(*w));
 		if(w == NULL) {
@@ -168,7 +168,7 @@ int get_loop(struct options *opt)
 		gettimeofday(&end, NULL);
 		count++;
 		if(bytes < 0) {
-			err = -bytes;
+			if(err < 0) err = -bytes;
 		} else {
 			time = end.tv_sec - start.tv_sec;
 			time += (double)(end.tv_usec - start.tv_usec) / 1000000;
