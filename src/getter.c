@@ -15,12 +15,12 @@
 static size_t get_urls(struct worker *w, char **urls, char *urls_loc, int *total_bytes)
 {
 	char buf[PIPE_BUF+1] = {}, outbuf[PIPE_BUF+1] = {};
-	int len, i;
-	size_t bytes, urls_c;
+	int len, i, err;
+	size_t bytes = 0, urls_c = 0;
 	len = sprintf(outbuf, "URLLIST %s", urls_loc);
 	msg_write(w->pipe_w, outbuf, len);
 	if((len = msg_read(w->pipe_r, buf, sizeof(buf))) == -1) {
-		return 0;
+		return -1;
 	}
 	if(sscanf(buf, "OK %lu bytes %lu urls", &bytes, &urls_c)) {
 		*total_bytes += bytes;
@@ -37,6 +37,9 @@ static size_t get_urls(struct worker *w, char **urls, char *urls_loc, int *total
 			}
 			memcpy(urls[i], buf, len+1);
 		}
+	} else if(sscanf(buf, "ERR %d", &err) == 1) {
+		fprintf(stderr, "cURL error: '%s' while getting URL list at %s.\n", curl_easy_strerror(err), urls_loc);
+		return -err;
 	}
 	return urls_c;
 }
@@ -56,7 +59,8 @@ int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_
 
 	if(urls_loc != NULL) {
 		urls = malloc(MAX_URLS * sizeof(urls));
-		urls_l = get_urls(workers, urls, urls_loc, &total_bytes);
+		if((len = get_urls(workers, urls, urls_loc, &total_bytes)) < 0) return len;
+		urls_l = len;
 		urls_alloc = 1;
 		reqs++;
 	}
