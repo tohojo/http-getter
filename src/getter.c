@@ -18,18 +18,15 @@ static size_t get_urls(struct worker *w, char **urls, char *urls_loc, int *total
 	int len, i;
 	size_t bytes, urls_c;
 	len = sprintf(outbuf, "URLLIST %s", urls_loc);
-	write(w->pipe_w, outbuf, len);
-	if((len = read(w->pipe_r, buf, sizeof(buf))) == -1) {
-		perror("read");
+	msg_write(w->pipe_w, outbuf, len);
+	if((len = msg_read(w->pipe_r, buf, sizeof(buf))) == -1) {
 		return 0;
 	}
-	buf[len] = '\0';
 	if(sscanf(buf, "OK %lu bytes %lu urls", &bytes, &urls_c)) {
 		*total_bytes += bytes;
 		if(!urls_c) return 0;
 		for(i = 0; i < urls_c; i++) {
-			if((len = read(w->pipe_r, buf, sizeof(buf))) == -1) {
-				perror("read");
+			if((len = msg_read(w->pipe_r, buf, sizeof(buf))) == -1) {
 				continue;
 			}
 			buf[len] = '\0';
@@ -52,8 +49,8 @@ int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_
 	fd_set rfds;
 	char buf[PIPE_BUF+1] = {}, outbuf[PIPE_BUF+1] = {};
 	for(w = workers; w; w = w->next) {
-		write(w->pipe_w, "RESET", sizeof("RESET"));
-		read(w->pipe_r, buf, sizeof(buf));
+		msg_write(w->pipe_w, "RESET", sizeof("RESET"));
+		msg_read(w->pipe_r, buf, sizeof(buf));
 		w->status = STATUS_READY;
 	}
 
@@ -71,7 +68,7 @@ int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_
 			if(w->status == STATUS_READY && cururl < urls_l) {
 				w->url = urls[cururl++];
 				len = sprintf(outbuf, "URL %s", w->url);
-				write(w->pipe_w, outbuf, len);
+				msg_write(w->pipe_w, outbuf, len);
 				w->status = STATUS_WORKING;
 			}
 			if(w->status == STATUS_WORKING) {
@@ -88,8 +85,7 @@ int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_
 		}
 		for(w = workers; w; w = w->next) {
 			if(FD_ISSET(w->pipe_r, &rfds)) {
-				if((len = read(w->pipe_r, buf, sizeof(buf))) == -1) {
-					perror("read");
+				if((len = msg_read(w->pipe_r, buf, sizeof(buf))) == -1) {
 					continue;
 				}
 				buf[len] = '\0';

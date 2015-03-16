@@ -18,4 +18,7 @@
        __typeof__ (b) _b = (b); \
      _a > _b ? _a : _b; })
 
+int msg_write(int fd, char* buf, int len);
+int msg_read(int fd, char* buf, int len);
+
 #endif

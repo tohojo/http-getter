@@ -36,6 +36,7 @@ set(http-getter_SOURCES
   src/main.c
   src/options.c
   src/getter.c
+  src/util.c
   src/worker.c)
 set(http-getter_HEADERS
   include/options.h

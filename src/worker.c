@@ -160,18 +160,17 @@ static int run_worker(struct worker_data *data)
 
 	while(1)
 	{
-		if((len = read(data->pipe_r, buf, sizeof(buf))) == -1) {
-			perror("read");
+		if((len = msg_read(data->pipe_r, buf, sizeof(buf))) == -1) {
 			return EXIT_FAILURE;
 		}
 		buf[len] = '\0';
-		if(strncmp(buf, "STOP", 4) == 0) return destroy_worker(data);
+		if(strncmp(buf, "STOP", 4) == 0 || len == 0) return destroy_worker(data);
 		if(strncmp(buf, "RESET", 5) == 0) {
 			if((res = reset_worker(data)) != 0) {
 				len = sprintf(outbuf, "ERR %d", res);
-				write(data->pipe_w, outbuf, len);
+				msg_write(data->pipe_w, outbuf, len);
 			} else {
-				write(data->pipe_w, "OK", sizeof("OK"));
+				msg_write(data->pipe_w, "OK", sizeof("OK"));
 			}
 			continue;
 		}
@@ -193,7 +192,7 @@ static int run_worker(struct worker_data *data)
 		data->chunk.size = 0;
 		if((res = curl_easy_perform(data->curl)) != CURLE_OK) {
 			len = sprintf(outbuf, "ERR %d", res);
-			write(data->pipe_w, outbuf, len);
+			msg_write(data->pipe_w, outbuf, len);
 		} else {
 			if((res = curl_easy_getinfo(data->curl, CURLINFO_SIZE_DOWNLOAD, &bytes)) != CURLE_OK ||
 				(res = curl_easy_getinfo(data->curl, CURLINFO_HEADER_SIZE, &header_bytes)) != CURLE_OK ) {
@@ -201,14 +200,14 @@ static int run_worker(struct worker_data *data)
 			}
 			if(data->chunk.enabled == 0) {
 				len = sprintf(outbuf, "OK %lu bytes", (long)bytes + header_bytes);
-				write(data->pipe_w, outbuf, len);
+				msg_write(data->pipe_w, outbuf, len);
 			} else {
 				urls_c = parse_urls(data->chunk.memory, data->chunk.size, urls, MAX_URLS);
 				len = sprintf(outbuf, "OK %lu bytes %lu urls", (long)bytes + header_bytes, (long)urls_c);
-				write(data->pipe_w, outbuf, len);
+				msg_write(data->pipe_w, outbuf, len);
 				for(i = 0; i < urls_c; i++) {
 					len = sprintf(outbuf, "%s", urls[i]);
-					write(data->pipe_w, outbuf, len);
+					msg_write(data->pipe_w, outbuf, len);
 					free(urls[i]);
 				}
 				data->chunk.enabled = 0;
@@ -227,7 +226,7 @@ int start_worker(struct worker *w, struct options *opt)
 	w->next = NULL;
 	w->status = STATUS_READY;
 
-	if(pipe2(fds_r, O_DIRECT) || pipe2(fds_w, O_DIRECT)) {
+	if(pipe(fds_r) || pipe(fds_w)) {
 		perror("pipe");
 		return EXIT_FAILURE;
 	}
@@ -262,7 +261,7 @@ int start_worker(struct worker *w, struct options *opt)
 
 int kill_worker(struct worker *w)
 {
-	write(w->pipe_w, "STOP", sizeof("STOP"));
+	msg_write(w->pipe_w, "STOP", sizeof("STOP"));
 	waitpid(w->pid, NULL, 0);
 	return 0;
 }
