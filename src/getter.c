@@ -133,6 +133,15 @@ void kill_workers()
 	for(w = workers; w; w = w->next) kill_worker(w);
 }
 
+static double min_time = -1, max_time = -1, total_time = 0;
+static int total_count = 0, success_count = 0, total_requests = 0;
+
+void print_stats(FILE *output)
+{
+	if(success_count == 0) min_time = max_time;
+	fprintf(output, "\nTotal %d successful of %d cycles. %d total requests. Min/avg/max: %.3f/%.3f/%.3f seconds.\n",
+		success_count, total_count, total_requests, min_time, total_time/success_count, max_time);
+}
 
 int get_loop(struct options *opt)
 {
@@ -167,16 +176,23 @@ int get_loop(struct options *opt)
 		bytes = get_once(workers, opt->urls, opt->urls_l, opt->urls_loc, &requests);
 		gettimeofday(&end, NULL);
 		count++;
+		total_count++;
 		if(bytes < 0) {
 			if(err < 0) err = -bytes;
 		} else {
 			time = end.tv_sec - start.tv_sec;
 			time += (double)(end.tv_usec - start.tv_usec) / 1000000;
+			if(time < min_time || min_time < 0) min_time = time;
+			if(time > max_time || max_time < 0) max_time = time;
+			success_count++;
+			total_requests += requests;
+			total_time += time;
 			fprintf(opt->output, "[%lu.%06lu] %d requests(s) received %lu bytes in %f seconds.\n", (long)end.tv_sec, (long)end.tv_usec, requests, (long)bytes, time);
 			err = 0;
 		}
 	} while((opt->count == 0 || count < opt->count) &&
 		(opt->run_length == 0 || end.tv_sec < stop.tv_sec || (end.tv_sec == stop.tv_sec && end.tv_usec < stop.tv_usec)));
 	kill_workers();
+	print_stats(opt->output);
 	return err;
 }

@@ -14,7 +14,7 @@
 
 static struct options opt;
 
-struct sigaction sigdfl = {
+static struct sigaction sigdfl = {
 	.sa_handler = SIG_DFL,
 	.sa_mask = {},
 	.sa_flags = 0,
@@ -22,8 +22,9 @@ struct sigaction sigdfl = {
 
 static void sig_exit(int signal)
 {
-	destroy_options(&opt);
 	kill_workers();
+	if(signal == SIGINT) print_stats(opt.output);
+	destroy_options(&opt);
 	if(signal == SIGINT) {
 		sigaction(SIGINT, &sigdfl, NULL);
 		kill(getpid(), SIGINT);
@@ -31,7 +32,7 @@ static void sig_exit(int signal)
 	exit(signal);
 }
 
-struct sigaction sigact = {
+static struct sigaction sigact = {
 	.sa_handler = sig_exit,
 	.sa_mask = {},
 	.sa_flags = 0,
