@@ -217,6 +217,19 @@ static int run_worker(struct worker_data *data)
 	return 0;
 }
 
+static struct sigaction sigign = {
+	.sa_handler = SIG_IGN,
+	.sa_mask = {},
+	.sa_flags = 0,
+};
+
+static struct sigaction sigdfl = {
+	.sa_handler = SIG_DFL,
+	.sa_mask = {},
+	.sa_flags = 0,
+};
+
+
 int start_worker(struct worker *w, struct options *opt)
 {
 	int fds_r[2];
@@ -246,6 +259,8 @@ int start_worker(struct worker *w, struct options *opt)
 		wd.ai_family = opt->ai_family;
 		close(fds_r[0]);
 		close(fds_w[1]);
+		sigaction(SIGINT, &sigign, NULL);
+		sigaction(SIGTERM, &sigdfl, NULL);
 		_exit(run_worker(&wd));
 	} else {
 		w->pipe_r = fds_r[0];
