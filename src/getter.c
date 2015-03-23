@@ -139,7 +139,7 @@ static int total_count = 0, success_count = 0, total_requests = 0;
 void print_stats(FILE *output)
 {
 	if(success_count == 0) min_time = max_time;
-	fprintf(output, "\nTotal %d successful of %d cycles. %d total requests. Min/avg/max: %.3f/%.3f/%.3f seconds.\n",
+	fprintf(output, "\nTotal %d successful of %d cycles. %d total requests. min/avg/max = %.3f/%.3f/%.3f seconds.\n",
 		success_count, total_count, total_requests, min_time, total_time/success_count, max_time);
 }
 
