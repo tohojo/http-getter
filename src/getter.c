@@ -179,6 +179,9 @@ int get_loop(struct options *opt)
 		total_count++;
 		if(bytes < 0) {
 			if(err < 0) err = -bytes;
+		} else if(bytes == 0) {
+			fprintf(stderr, "Error: Nothing received.\n");
+			err = 1;
 		} else {
 			time = end.tv_sec - start.tv_sec;
 			time += (double)(end.tv_usec - start.tv_usec) / 1000000;
