@@ -191,6 +191,7 @@ int get_loop(struct options *opt)
 			total_requests += requests;
 			total_time += time;
 			fprintf(opt->output, "[%lu.%06lu] %d requests(s) received %lu bytes in %f seconds.\n", (long)end.tv_sec, (long)end.tv_usec, requests, (long)bytes, time);
+			fflush(opt->output);
 			err = 0;
 		}
 	} while((opt->count == 0 || count < opt->count) &&
