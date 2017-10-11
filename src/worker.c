@@ -32,6 +32,8 @@ struct worker_data {
 	CURLcode res;
 	int pipe_r;
 	int pipe_w;
+        double worker_report_interval;
+        curl_off_t last_dlnow;
 };
 
 
@@ -51,6 +53,24 @@ static size_t memory_callback(void *contents, size_t size, size_t nmemb, void *u
 	chunk->size += realsize;
 	chunk->memory[chunk->size] = 0;
 	return realsize;
+}
+
+static int prog_report(void *wd, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow) {
+        struct worker_data *mywd = (struct worker_data *)wd;
+        char outbuf[PIPE_BUF+1] = {};
+        ssize_t len;
+        curl_off_t delta; 
+
+        delta = dlnow - mywd->last_dlnow; 
+        mywd->last_dlnow = dlnow;
+        len = sprintf(outbuf, "REP %"CURL_FORMAT_CURL_OFF_T, delta);
+        msg_write(mywd->pipe_w, outbuf, len);
+      
+        return 0;
+}
+
+static int old_prog_report(void *wd, double dltotal, double dlnow, double ultotal, double ulnow) {
+        return prog_report(wd, (curl_off_t)dltotal, (curl_off_t)dlnow, (curl_off_t)ultotal, (curl_off_t)ulnow);
 }
 
 static int init_worker(struct worker_data *data)
@@ -103,6 +123,31 @@ static int init_worker(struct worker_data *data)
 	}
 
 
+        /* Enable periodic worker reporting if enabled on CLI */
+        if (data->worker_report_interval > 0) {
+                fprintf(stderr, "Enable reporting on write pipe fd: %d\n", data->pipe_w); 
+                if ((res = curl_easy_setopt(data->curl, CURLOPT_PROGRESSFUNCTION, old_prog_report)) != CURLE_OK) {
+                        fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+                } 
+                if ((res = curl_easy_setopt(data->curl, CURLOPT_PROGRESSDATA, data)) != CURLE_OK) {
+                        fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+                } 
+
+#if LIBCURL_VERSION_NUM >= 0x72000
+                if ((res = curl_easy_setopt(data->curl, CURLOPT_XFERINFOFUNCTION, prog_report)) != CURLE_OK) {
+                        fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+                } 
+                if ((res = curl_easy_setopt(data->curl, CURLOPT_XFERINFODATA, data)) != CURLE_OK) {
+                        fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+                } 
+#endif
+                if ((res = curl_easy_setopt(data->curl, CURLOPT_NOPROGRESS, 0L)) != CURLE_OK) {
+                        fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+                } 
+                data->last_dlnow = (curl_off_t)0;
+        } 
+
+
 	data->chunk.memory = NULL;
 	data->chunk.size = 0;
 	data->chunk.enabled = 0;
@@ -141,6 +186,7 @@ static int destroy_worker(struct worker_data *data)
 
 static int reset_worker(struct worker_data *data)
 {
+        fprintf(stderr, "RESET WORKER\n");
 	destroy_worker(data);
 	return init_worker(data);
 }
@@ -179,6 +225,7 @@ static int run_worker(struct worker_data *data)
 			data->chunk.enabled = 1;
 		} else if(strncmp(buf, "URL ", 4) == 0) {
 			p = buf + 4;
+                        data->last_dlnow = (curl_off_t)0;
 		} else {
 			fprintf(stderr, "Unrecognised command '%s'!\n", buf);
 			break;
@@ -257,6 +304,7 @@ int start_worker(struct worker *w, struct options *opt)
 		wd.timeout = opt->timeout;
 		wd.dns_servers = opt->dns_servers;
 		wd.ai_family = opt->ai_family;
+                wd.worker_report_interval = opt->worker_report_interval;
 		close(fds_r[0]);
 		close(fds_w[1]);
 		sigaction(SIGINT, &sigign, NULL);

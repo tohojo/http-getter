@@ -29,6 +29,7 @@ int initialise_options(struct options *opt, int argc, char **argv)
 	opt->urls_l = 0;
 	memset(&opt->urls, 0, MAX_URLS * sizeof(&opt->urls));
 	opt->urls_loc = NULL;
+        opt->worker_report_interval = 0;
 
 	if(parse_options(opt, argc, argv) < 0)
 		return -2;
@@ -51,7 +52,7 @@ void destroy_options(struct options *opt)
 
 static void usage(const char *name)
 {
-	fprintf(stderr, "Usage: %s [-46Dh] [-c <count>] [-d <dns_servers>] [-i <interval>] [-l <length>] [-n <workers>] [-o <output>] [-t <timeout>] [url_file]\n", name);
+	fprintf(stderr, "Usage: %s [-46Dh] [-c <count>] [-d <dns_servers>] [-i <interval>] [-l <length>] [-n <workers>] [-o <output>] [-t <timeout>] [-r <report_interval>] [url_file]\n", name);
 }
 
 
@@ -59,12 +60,13 @@ int parse_options(struct options *opt, int argc, char **argv)
 {
 	int o;
 	int val;
+        double val_f;
 	FILE *output, *urlfile;
 	char * line;
 	size_t len = 0;
 	ssize_t read;
 
-	while((o = getopt(argc, argv, "46Dhc:d:i:l:n:o:t:")) != -1) {
+	while((o = getopt(argc, argv, "46Dhc:d:i:l:n:o:t:r:")) != -1) {
 		switch(o) {
 		case '4':
 			opt->ai_family = AF_INET;
@@ -129,6 +131,14 @@ int parse_options(struct options *opt, int argc, char **argv)
 				opt->output = output;
 			}
 			break;
+                case 'r':
+                       val_f = atof(optarg);
+                       if (val_f < 0) {
+                                fprintf(stderr, "Invalid worker report interval value: %f\n", val_f);
+                                return -1;
+                       }
+                       opt->worker_report_interval = val_f;
+                       break;
 		case 't':
 			val = atoi(optarg);
 			if(val < 0) {
