@@ -12,16 +12,17 @@
 #include "worker.h"
 #include "util.h"
 
-static size_t get_urls(struct worker *w, char **urls, char *urls_loc, int *total_bytes)
+static int get_urls(struct worker *w, char **urls, char *urls_loc, int *total_bytes)
 {
 	char buf[PIPE_BUF+1] = {}, outbuf[PIPE_BUF+1] = {};
 	int len, i, err;
 	size_t bytes = 0, urls_c = 0;
 	len = sprintf(outbuf, "URLLIST %s", urls_loc);
-	msg_write(w->pipe_w, outbuf, len);
-	if((len = msg_read(w->pipe_r, buf, sizeof(buf))) == -1) {
+
+	if(msg_write(w->pipe_w, outbuf, len) ||
+	   (len = msg_read(w->pipe_r, buf, sizeof(buf))) == -1)
 		return -1;
-	}
+
 	if(sscanf(buf, "OK %lu bytes %lu urls", &bytes, &urls_c)) {
 		*total_bytes += bytes;
 		if(!urls_c) return 0;
@@ -52,8 +53,9 @@ int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_
 	fd_set rfds;
 	char buf[PIPE_BUF+1] = {}, outbuf[PIPE_BUF+1] = {};
 	for(w = workers; w; w = w->next) {
-		msg_write(w->pipe_w, "RESET", sizeof("RESET"));
-		msg_read(w->pipe_r, buf, sizeof(buf));
+		if(msg_write(w->pipe_w, "RESET", sizeof("RESET")) ||
+		   msg_read(w->pipe_r, buf, sizeof(buf)))
+			return -1;
 		w->status = STATUS_READY;
 	}
 
@@ -72,7 +74,8 @@ int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_
 			if(w->status == STATUS_READY && cururl < urls_l) {
 				w->url = urls[cururl++];
 				len = sprintf(outbuf, "URL %s", w->url);
-				msg_write(w->pipe_w, outbuf, len);
+				if(msg_write(w->pipe_w, outbuf, len))
+					return -1;
 				w->status = STATUS_WORKING;
 			}
 			if(w->status == STATUS_WORKING) {
@@ -178,7 +181,8 @@ int get_loop(struct options *opt)
 		count++;
 		total_count++;
 		if(bytes < 0) {
-			if(err < 0) err = -bytes;
+			err = -bytes;
+			break;
 		} else if(bytes == 0) {
 			fprintf(stderr, "Error: Nothing received.\n");
 			err = 1;
