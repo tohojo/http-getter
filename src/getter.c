@@ -17,10 +17,11 @@ static int get_urls(struct worker *w, char **urls, char *urls_loc, int *total_by
 	char buf[PIPE_BUF+1] = {}, outbuf[PIPE_BUF+1] = {};
 	int len, i, err;
 	size_t bytes = 0, urls_c = 0;
-	len = sprintf(outbuf, "URLLIST %s", urls_loc);
+	len = snprintf(outbuf, sizeof(outbuf)-1, "URLLIST %s", urls_loc);
+	outbuf[len] = '\0';
 
 	if(msg_write(w->pipe_w, outbuf, len) ||
-	   (len = msg_read(w->pipe_r, buf, sizeof(buf))) == -1)
+	   (len = msg_read(w->pipe_r, buf, sizeof(buf))) < 0)
 		return -1;
 
 	if(sscanf(buf, "OK %lu bytes %lu urls", &bytes, &urls_c)) {
@@ -53,17 +54,24 @@ int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_
 	fd_set rfds;
 	char buf[PIPE_BUF+1] = {}, outbuf[PIPE_BUF+1] = {};
 	for(w = workers; w; w = w->next) {
-		if(msg_write(w->pipe_w, "RESET", sizeof("RESET")) ||
-		   msg_read(w->pipe_r, buf, sizeof(buf)))
+		if(msg_write(w->pipe_w, "RESET", sizeof("RESET")))
 			return -1;
+		msg_read(w->pipe_r, buf, sizeof(buf));
 		w->status = STATUS_READY;
 	}
 
 	if(urls_loc != NULL) {
 		urls = malloc(MAX_URLS * sizeof(urls));
-		if((len = get_urls(workers, urls, urls_loc, &total_bytes)) < 0) return len;
-		urls_l = len;
+		if(!urls) {
+			perror("malloc()");
+			return -1;
+		}
+		if((len = get_urls(workers, urls, urls_loc, &total_bytes)) < 0) {
+			free(urls);
+			return len;
+		}
 		urls_alloc = 1;
+		urls_l = len;
 		reqs++;
 	}
 
@@ -74,8 +82,8 @@ int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_
 			if(w->status == STATUS_READY && cururl < urls_l) {
 				w->url = urls[cururl++];
 				len = sprintf(outbuf, "URL %s", w->url);
-				if(msg_write(w->pipe_w, outbuf, len))
-					return -1;
+				if((err = msg_write(w->pipe_w, outbuf, len)) < 0)
+					goto out;
 				w->status = STATUS_WORKING;
 			}
 			if(w->status == STATUS_WORKING) {
@@ -88,7 +96,8 @@ int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_
 		retval = select(nfds, &rfds, NULL, NULL, NULL);
 		if(retval == -1) {
 			perror("select()");
-			return -1;
+			err = retval;
+			goto out;
 		}
 		for(w = workers; w; w = w->next) {
 			if(FD_ISSET(w->pipe_r, &rfds)) {
@@ -107,10 +116,12 @@ int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_
 		}
 	} while(1);
 
+out:
 	if(urls_alloc) {
 		for(i = 0; i < urls_l; i++) {
 			free(urls[i]);
 		}
+		free(urls);
 	}
 	*requests = reqs;
 	return err ? -err : total_bytes;
