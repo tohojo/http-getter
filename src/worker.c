@@ -60,47 +60,47 @@ static int init_worker(struct worker_data *data)
 	if(!data->curl)
 		return -1;
 	if(data->debug > 1 && (res = curl_easy_setopt(data->curl, CURLOPT_VERBOSE, 1L)) != CURLE_OK) {
-		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+		fprintf(stderr, "cURL VERBOSE option error: %s\n", curl_easy_strerror(res));
 		goto out;
 	}
 
 	if((res = curl_easy_setopt(data->curl, CURLOPT_FOLLOWLOCATION, 1L)) != CURLE_OK) {
-		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+		fprintf(stderr, "cURL FOLLOWLOCATION option error: %s\n", curl_easy_strerror(res));
 		goto out;
 	}
 	if(data->timeout && (res = curl_easy_setopt(data->curl, CURLOPT_TIMEOUT_MS, data->timeout)) != CURLE_OK) {
-		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+		fprintf(stderr, "cURL TIMEOUT_MS option error: %s\n", curl_easy_strerror(res));
 		goto out;
 	}
 	if((res = curl_easy_setopt(data->curl, CURLOPT_TCP_NODELAY, 1L)) != CURLE_OK) {
-		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+		fprintf(stderr, "cURL TCP_NODELAY option error: %s\n", curl_easy_strerror(res));
 		goto out;
 	}
 
 	if(data->dns_servers && (res = curl_easy_setopt(data->curl, CURLOPT_DNS_SERVERS, data->dns_servers)) != CURLE_OK) {
-		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+		fprintf(stderr, "cURL DNS_SERVERS option error: %s\n", curl_easy_strerror(res));
 		goto out;
 	}
 
 	if(data->ai_family == AF_INET && (res = curl_easy_setopt(data->curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4)) != CURLE_OK) {
-		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+		fprintf(stderr, "cURL IPRESOLVE (v4) option error: %s\n", curl_easy_strerror(res));
 		goto out;
 	}
 	if(data->ai_family == AF_INET6 && (res = curl_easy_setopt(data->curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V6)) != CURLE_OK) {
-		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+		fprintf(stderr, "cURL IPRESOLVE (v6) option error: %s\n", curl_easy_strerror(res));
 		goto out;
 	}
 
 	/* send all data to this function  */
 	if((res = curl_easy_setopt(data->curl, CURLOPT_WRITEFUNCTION, memory_callback)) != CURLE_OK) {
-		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+		fprintf(stderr, "cURL WRITEFUNCTION option error: %s\n", curl_easy_strerror(res));
 		goto out;
 	}
 
 
 	/* we pass our 'chunk' struct to the callback function */
 	if((res = curl_easy_setopt(data->curl, CURLOPT_WRITEDATA, (void *)&data->chunk)) != CURLE_OK) {
-		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+		fprintf(stderr, "cURL WRITEDATA option error: %s\n", curl_easy_strerror(res));
 		goto out;
 	}
 
@@ -108,7 +108,7 @@ static int init_worker(struct worker_data *data)
 	/* some servers don't like requests that are made without a user-agent
 	   field, so we provide one */
 	if((res = curl_easy_setopt(data->curl, CURLOPT_USERAGENT, "http-getter/0.1")) != CURLE_OK) {
-		fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+		fprintf(stderr, "cURL USERAGENT option error: %s\n", curl_easy_strerror(res));
 		goto out;
 	}
 
