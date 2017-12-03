@@ -9,7 +9,7 @@ pkgdesc="Parallel HTTP getter."
 arch=(x86_64)
 url="https://github.com/tohojo/http-getter"
 license=('GPL')
-depends=('glibc')
+depends=('curl')
 makedepends=('git' 'cmake')
 source=('git+http://github.com/tohojo/http-getter.git')
 md5sums=('SKIP')
@@ -28,8 +28,8 @@ build() {
 
 package() {
   cd $_gitname
-  mkdir -p "$pkgdir/bin/"
-  install -m 755 http-getter "$pkgdir/bin/"
+  mkdir -p "$pkgdir/usr/bin/"
+  install -m 755 http-getter "$pkgdir/usr/bin/"
 }
 
 # vim:set ts=2 sw=2 et:
