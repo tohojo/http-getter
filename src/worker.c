@@ -125,14 +125,6 @@ static int init_worker(struct worker_data *data)
 
         /* Enable periodic worker reporting if enabled on CLI */
         if (data->worker_report_interval > 0) {
-                fprintf(stderr, "Enable reporting on write pipe fd: %d\n", data->pipe_w); 
-                if ((res = curl_easy_setopt(data->curl, CURLOPT_PROGRESSFUNCTION, old_prog_report)) != CURLE_OK) {
-                        fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
-                } 
-                if ((res = curl_easy_setopt(data->curl, CURLOPT_PROGRESSDATA, data)) != CURLE_OK) {
-                        fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
-                } 
-
 #if LIBCURL_VERSION_NUM >= 0x72000
                 if ((res = curl_easy_setopt(data->curl, CURLOPT_XFERINFOFUNCTION, prog_report)) != CURLE_OK) {
                         fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
@@ -140,11 +132,18 @@ static int init_worker(struct worker_data *data)
                 if ((res = curl_easy_setopt(data->curl, CURLOPT_XFERINFODATA, data)) != CURLE_OK) {
                         fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
                 } 
+#else 
+                if ((res = curl_easy_setopt(data->curl, CURLOPT_PROGRESSFUNCTION, old_prog_report)) != CURLE_OK) {
+                        fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+                } 
+                if ((res = curl_easy_setopt(data->curl, CURLOPT_PROGRESSDATA, data)) != CURLE_OK) {
+                        fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
+                } 
 #endif
                 if ((res = curl_easy_setopt(data->curl, CURLOPT_NOPROGRESS, 0L)) != CURLE_OK) {
                         fprintf(stderr, "cURL option error: %s\n", curl_easy_strerror(res));
                 } 
-                data->last_dlnow = (curl_off_t)0;
+                data->last_dlnow = 0;
         } 
 
 
@@ -186,7 +185,6 @@ static int destroy_worker(struct worker_data *data)
 
 static int reset_worker(struct worker_data *data)
 {
-        fprintf(stderr, "RESET WORKER\n");
 	destroy_worker(data);
 	return init_worker(data);
 }

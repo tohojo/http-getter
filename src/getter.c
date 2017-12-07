@@ -56,7 +56,7 @@ int get_once(struct worker *workers, struct options* opt, int *requests)
         struct timeval now_tv;
         int dl_delta = 0;
         double last_report = 0, now = 0, speed = 0, time_delta = 0;
-        unsigned int report_bytes_dl = 0, report_count = 0;
+        unsigned int report_bytes_dl = 0;
 
 	for(w = workers; w; w = w->next) {
 		msg_write(w->pipe_w, "RESET", sizeof("RESET"));
@@ -116,11 +116,14 @@ int get_once(struct worker *workers, struct options* opt, int *requests)
                                          now = now_tv.tv_sec + now_tv.tv_usec / 1000000.0;
                                          time_delta = now - last_report;
                                          if(time_delta >= opt->worker_report_interval) {
-                                           speed = report_bytes_dl / time_delta;
-                                           fprintf(stderr, "GETTER_INTERIM_RESULT[%u]=%f\r\n", report_count, speed); 
-                                           fprintf(stderr, "GETTER_INTERVAL[%u]=%f\r\n", report_count, time_delta);
-                                           fprintf(stderr, "GETTER_ENDING[%u]=%f\r\n", report_count, now);
-                                           report_count++;
+                                           speed = 8 * report_bytes_dl / time_delta; //Report on bits not bytes
+                                           fprintf(stdout, "Worker %u: %f bps (%u bytes over %f seconds) ending at %f\r\n", 
+                                                           w->pipe_w,
+                                                           speed,
+                                                           report_bytes_dl,
+                                                           time_delta,
+                                                           now);
+
                                            report_bytes_dl = 0;
                                            last_report = now;
                                          }
