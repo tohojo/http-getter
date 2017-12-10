@@ -46,13 +46,20 @@ static int get_urls(struct worker *w, char **urls, char *urls_loc, int *total_by
 	return urls_c;
 }
 
-int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_loc, int *requests)
+int get_once(struct worker *workers, struct options* opt, int *requests)
 {
 	struct worker *w;
+        ssize_t urls_l = opt->urls_l;
+        char *urls_loc = opt->urls_loc;
 	int cururl = 0, total_bytes = 0, urls_alloc = 0, reqs = 0, err = 0, bytes, nfds, retval, len, i;
-	char **urls = urls_opt;
+	char **urls = opt->urls;
 	fd_set rfds;
 	char buf[PIPE_BUF+1] = {}, outbuf[PIPE_BUF+1] = {};
+        struct timeval now_tv;
+        int dl_delta = 0;
+        double last_report = 0, now = 0, speed = 0, time_delta = 0;
+        unsigned int report_bytes_dl = 0;
+
 	for(w = workers; w; w = w->next) {
 		if(msg_write(w->pipe_w, "RESET", sizeof("RESET")))
 			return -1;
@@ -60,7 +67,7 @@ int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_
 		w->status = STATUS_READY;
 	}
 
-	if(urls_loc != NULL) {
+	if(opt->urls_loc != NULL) {
 		urls = malloc(MAX_URLS * sizeof(urls));
 		if(!urls) {
 			perror("malloc()");
@@ -74,6 +81,9 @@ int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_
 		urls_l = len;
 		reqs++;
 	}
+
+        gettimeofday(&now_tv, NULL);
+        last_report = now_tv.tv_sec + now_tv.tv_usec / 1000000.0;
 
 	do {
 		FD_ZERO(&rfds);
@@ -108,10 +118,28 @@ int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_
 				if(sscanf(buf, "OK %d bytes", &bytes) == 1) {
 					total_bytes += bytes;
 					reqs++;
+				        w->status = STATUS_READY;
 				} else if(sscanf(buf, "ERR %d", &err) == 1) {
 					fprintf(stderr, "cURL error: %s for URL '%s'.\n", curl_easy_strerror(err), w->url);
-				}
-				w->status = STATUS_READY;
+				        w->status = STATUS_READY;
+				} else if(sscanf(buf, "REP %d", &dl_delta) == 1) {
+                                         report_bytes_dl += dl_delta;
+                                         gettimeofday(&now_tv, NULL);
+                                         now = now_tv.tv_sec + now_tv.tv_usec / 1000000.0;
+                                         time_delta = now - last_report;
+                                         if(time_delta >= opt->worker_report_interval) {
+                                           speed = 8 * report_bytes_dl / time_delta; //Report on bits not bytes
+                                           fprintf(stdout, "Worker %u: %f bps (%u bytes over %f seconds) ending at %f\r\n", 
+                                                           w->pipe_w,
+                                                           speed,
+                                                           report_bytes_dl,
+                                                           time_delta,
+                                                           now);
+
+                                           report_bytes_dl = 0;
+                                           last_report = now;
+                                         }
+                                }
 			}
 		}
 	} while(1);
@@ -187,7 +215,7 @@ int get_loop(struct options *opt)
 			gettimeofday(&start, NULL);
 		}
 		schedule_next(opt->interval, &start, &next);
-		bytes = get_once(workers, opt->urls, opt->urls_l, opt->urls_loc, &requests);
+		bytes = get_once(workers, opt, &requests);
 		gettimeofday(&end, NULL);
 		count++;
 		total_count++;

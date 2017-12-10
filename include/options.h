@@ -34,6 +34,7 @@ struct options {
 	char *urls[MAX_URLS];
 	size_t urls_l;
 	char *urls_loc;
+        double worker_report_interval; 
 };
 
 int initialise_options(struct options *opt, int argc, char **argv);
