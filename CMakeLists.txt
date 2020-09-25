@@ -28,6 +28,11 @@ else()
   MESSAGE(SEND_ERROR "Could not find cURL on your system")
 ENDIF(CURL_FOUND)
 
+include(CheckCCompilerFlag)
+check_c_compiler_flag(-Werror=gnu-empty-initializer HAS_WERROR_GNU_EMPTY_INITIALIZER)
+if(HAS_WERROR_GNU_EMPTY_INITIALIZER)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=gnu-empty-initializer")
+endif(HAS_WERROR_GNU_EMPTY_INITIALIZER)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-long-long")
 
