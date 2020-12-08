@@ -16,8 +16,6 @@ static struct options opt;
 
 static struct sigaction sigdfl = {
 	.sa_handler = SIG_DFL,
-	.sa_mask = {},
-	.sa_flags = 0,
 };
 
 static void sig_exit(int signal)
@@ -34,8 +32,6 @@ static void sig_exit(int signal)
 
 static struct sigaction sigact = {
 	.sa_handler = sig_exit,
-	.sa_mask = {},
-	.sa_flags = 0,
 };
 
 

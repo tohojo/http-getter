@@ -14,7 +14,7 @@
 
 static int get_urls(struct worker *w, char **urls, char *urls_loc, int *total_bytes)
 {
-	char buf[PIPE_BUF+1] = {}, outbuf[PIPE_BUF+1] = {};
+	char buf[PIPE_BUF+1] = {0}, outbuf[PIPE_BUF+1] = {0};
 	int len, i, err;
 	size_t bytes = 0, urls_c = 0;
 	len = snprintf(outbuf, sizeof(outbuf)-1, "URLLIST %s", urls_loc);
@@ -52,7 +52,7 @@ int get_once(struct worker *workers, char **urls_opt, size_t urls_l, char *urls_
 	int cururl = 0, total_bytes = 0, urls_alloc = 0, reqs = 0, err = 0, bytes, nfds, retval, len, i;
 	char **urls = urls_opt;
 	fd_set rfds;
-	char buf[PIPE_BUF+1] = {}, outbuf[PIPE_BUF+1] = {};
+	char buf[PIPE_BUF+1] = {0}, outbuf[PIPE_BUF+1] = {0};
 	for(w = workers; w; w = w->next) {
 		if(msg_write(w->pipe_w, "RESET", sizeof("RESET")))
 			return -1;

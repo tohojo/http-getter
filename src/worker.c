@@ -8,6 +8,7 @@
 #define _GNU_SOURCE
 #include <fcntl.h>
 #include <unistd.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -158,8 +159,8 @@ static int reset_worker(struct worker_data *data)
 
 static int run_worker(struct worker_data *data)
 {
-	char buf[PIPE_BUF+1] = {};
-	char outbuf[PIPE_BUF+1] = {};
+	char buf[PIPE_BUF+1] = {0};
+	char outbuf[PIPE_BUF+1] = {0};
 	char *urls[MAX_URLS];
 	size_t urls_c;
 	char *p;
@@ -230,14 +231,10 @@ static int run_worker(struct worker_data *data)
 
 static struct sigaction sigign = {
 	.sa_handler = SIG_IGN,
-	.sa_mask = {},
-	.sa_flags = 0,
 };
 
 static struct sigaction sigdfl = {
 	.sa_handler = SIG_DFL,
-	.sa_mask = {},
-	.sa_flags = 0,
 };
 
 
@@ -261,7 +258,7 @@ int start_worker(struct worker *w, struct options *opt)
 		return EXIT_FAILURE;
 	}
 	if(cpid == 0) {
-		struct worker_data wd = {};
+		struct worker_data wd = {0};
 		wd.pipe_r = fds_w[0];
 		wd.pipe_w = fds_r[1];
 		wd.debug = opt->debug;
