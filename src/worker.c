@@ -166,7 +166,7 @@ static int run_worker(struct worker_data *data)
 	char *p;
 	int res, i;
 	ssize_t len;
-	double bytes;
+	curl_off_t bytes;
 	long header_bytes;
 	if(init_worker(data)) return -1;
 
@@ -206,7 +206,7 @@ static int run_worker(struct worker_data *data)
 			len = sprintf(outbuf, "ERR %d", res);
 			msg_write(data->pipe_w, outbuf, len);
 		} else {
-			if((res = curl_easy_getinfo(data->curl, CURLINFO_SIZE_DOWNLOAD, &bytes)) != CURLE_OK ||
+			if((res = curl_easy_getinfo(data->curl, CURLINFO_SIZE_DOWNLOAD_T, &bytes)) != CURLE_OK ||
 				(res = curl_easy_getinfo(data->curl, CURLINFO_HEADER_SIZE, &header_bytes)) != CURLE_OK ) {
 				fprintf(stderr, "cURL error: %s\n", curl_easy_strerror(res));
 			}
